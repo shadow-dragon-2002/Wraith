@@ -15,7 +15,8 @@ use windows_sys::Win32::{
     },
     UI::WindowsAndMessaging::{
         CreateWindowExW, DispatchMessageW, GetMessageW, MessageBoxW, RegisterClassExW,
-        RegisterWindowMessageW, TranslateMessage, HWND_MESSAGE, MB_ICONERROR, MB_OK, MSG,
+        RegisterWindowMessageW, TranslateMessage, HWND_MESSAGE, MB_ICONERROR, MB_ICONINFORMATION,
+        MB_OK, MSG,
         WNDCLASSEXW, WM_USER,
     },
 };
@@ -38,13 +39,23 @@ fn main() {
     unsafe {
         // 1. Single-instance guard
         let mutex_name = to_wide("Global\\WraithSingleInstance");
-        CreateMutexW(std::ptr::null(), 0, mutex_name.as_ptr());
-        if GetLastError() == ERROR_ALREADY_EXISTS {
+        let _mutex = CreateMutexW(std::ptr::null(), 0, mutex_name.as_ptr());
+        let mutex_err = GetLastError();
+        if _mutex == 0 {
+            MessageBoxW(
+                0,
+                to_wide("Failed to create mutex.").as_ptr(),
+                to_wide("Wraith").as_ptr(),
+                MB_OK | MB_ICONERROR,
+            );
+            ExitProcess(1);
+        }
+        if mutex_err == ERROR_ALREADY_EXISTS {
             MessageBoxW(
                 0,
                 to_wide("Wraith is already running.").as_ptr(),
                 to_wide("Wraith").as_ptr(),
-                MB_OK | MB_ICONERROR,
+                MB_OK | MB_ICONINFORMATION,
             );
             ExitProcess(0);
         }

@@ -6,7 +6,7 @@ use std::sync::atomic::Ordering::Relaxed;
 use windows_sys::Win32::{
     Networking::WinHttp::{
         WinHttpCloseHandle, WinHttpConnect, WinHttpOpen, WinHttpOpenRequest,
-        WinHttpReadData, WinHttpReceiveResponse, WinHttpSendRequest,
+        WinHttpReadData, WinHttpReceiveResponse, WinHttpSendRequest, WinHttpSetOption,
     },
     UI::WindowsAndMessaging::PostMessageW,
 };
@@ -15,6 +15,8 @@ use crate::hooks::APP_HWND;
 
 const WINHTTP_ACCESS_TYPE_DEFAULT_PROXY: u32 = 0;
 const WINHTTP_FLAG_SECURE: u32 = 0x0080_0000;
+const WINHTTP_OPTION_CONNECT_TIMEOUT: u32 = 4;
+const WINHTTP_OPTION_RECEIVE_TIMEOUT: u32 = 6;
 
 fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
@@ -79,6 +81,10 @@ unsafe fn fetch_latest() -> Option<Vec<u8>> {
         WinHttpCloseHandle(session);
         return None;
     }
+
+    let timeout = 10000u32;
+    WinHttpSetOption(request, WINHTTP_OPTION_CONNECT_TIMEOUT, &timeout as *const u32 as *const core::ffi::c_void, 4);
+    WinHttpSetOption(request, WINHTTP_OPTION_RECEIVE_TIMEOUT, &timeout as *const u32 as *const core::ffi::c_void, 4);
 
     let sent = WinHttpSendRequest(
         request,
@@ -159,7 +165,7 @@ pub fn spawn(_hwnd: windows_sys::Win32::Foundation::HWND) {
         }
 
         let msg = Box::new(format!(
-            "Wraith {} is available. Download at github.com/shadow-dragon-2002/Wraith/releases",
+            "Version {} is available. Visit github.com/shadow-dragon-2002/Wraith/releases",
             tag
         ));
         let raw = Box::into_raw(msg) as isize;

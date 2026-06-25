@@ -153,6 +153,7 @@ pub unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPA
 
         WM_TIMER => {
             if wp == TIMER_PANIC {
+                if !LOCKED.load(Relaxed) { return 0; }
                 let cfg = crate::config::Config::get();
                 // GetAsyncKeyState works even when the hook blocks the physical event.
                 // Bit 15 set = key currently held down.
