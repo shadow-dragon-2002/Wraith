@@ -6,7 +6,7 @@ mod hooks;
 mod tray;
 mod updater;
 
-use std::sync::atomic::Ordering::Relaxed;
+use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 use windows_sys::Win32::{
     Foundation::{ERROR_ALREADY_EXISTS, GetLastError},
     System::{
@@ -14,8 +14,8 @@ use windows_sys::Win32::{
         Threading::{CreateMutexW, ExitProcess},
     },
     UI::WindowsAndMessaging::{
-        CreateWindowExW, DispatchMessageW, GetMessageW, MessageBoxW,
-        RegisterClassExW, TranslateMessage, HWND_MESSAGE, MB_ICONERROR, MB_OK, MSG,
+        CreateWindowExW, DispatchMessageW, GetMessageW, MessageBoxW, RegisterClassExW,
+        RegisterWindowMessageW, TranslateMessage, HWND_MESSAGE, MB_ICONERROR, MB_OK, MSG,
         WNDCLASSEXW, WM_USER,
     },
 };
@@ -27,6 +27,8 @@ pub(crate) const ID_UNLOCK: usize = 1002;
 pub(crate) const ID_AUTOSTART: usize = 1003;
 pub(crate) const ID_EXIT: usize = 1004;
 pub(crate) const TIMER_PANIC: usize = 2001;
+
+pub(crate) static TASKBAR_CREATED: AtomicU32 = AtomicU32::new(0);
 
 pub(crate) fn to_wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
@@ -47,7 +49,7 @@ fn main() {
             ExitProcess(0);
         }
 
-        // 2. Config — load and cache in OnceLock
+        // 2. Config -- load and cache in OnceLock
         config::Config::get();
 
         // 3. Register window class + create message-only window
@@ -68,7 +70,15 @@ fn main() {
             lpszClassName: class_name.as_ptr(),
             hIconSm: 0,
         };
-        RegisterClassExW(&wc);
+        if RegisterClassExW(&wc) == 0 {
+            MessageBoxW(
+                0,
+                to_wide("Failed to register window class.").as_ptr(),
+                to_wide("Wraith").as_ptr(),
+                MB_OK | MB_ICONERROR,
+            );
+            ExitProcess(1);
+        }
 
         let hwnd = CreateWindowExW(
             0,
@@ -81,15 +91,27 @@ fn main() {
             hinstance,
             std::ptr::null(),
         );
+        if hwnd == 0 {
+            MessageBoxW(
+                0,
+                to_wide("Failed to create message window.").as_ptr(),
+                to_wide("Wraith").as_ptr(),
+                MB_OK | MB_ICONERROR,
+            );
+            ExitProcess(1);
+        }
 
-        // 4. Store HWND for hook callbacks and updater thread
-        hooks::APP_HWND.store(hwnd as usize, Relaxed);
+        // 4. Register WM_TASKBARCREATED for Explorer crash recovery
+        TASKBAR_CREATED.store(
+            RegisterWindowMessageW(to_wide("TaskbarCreated").as_ptr()),
+            Relaxed,
+        );
 
         // 5. Create tray icon, store pointer in GWLP_USERDATA
         let tray = Box::new(tray::TrayIcon::new(hwnd));
         app::store_tray(hwnd, tray);
 
-        // 6. Install low-level hooks — exit on failure (running hookless is silent failure)
+        // 6. Install low-level hooks (also stores APP_HWND) -- exit on failure
         if let Err(e) = hooks::install(hwnd) {
             MessageBoxW(
                 hwnd,
@@ -108,9 +130,11 @@ fn main() {
         // 8. Spawn update checker (background thread)
         updater::spawn(hwnd);
 
-        // 9. Message pump — drives WH_KEYBOARD_LL / WH_MOUSE_LL callbacks
+        // 9. Message pump -- drives WH_KEYBOARD_LL / WH_MOUSE_LL callbacks
         let mut msg: MSG = std::mem::zeroed();
-        while GetMessageW(&mut msg, 0, 0, 0) != 0 {
+        loop {
+            let r = GetMessageW(&mut msg, 0, 0, 0);
+            if r <= 0 { break; } // 0 = WM_QUIT, negative = error
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
         }

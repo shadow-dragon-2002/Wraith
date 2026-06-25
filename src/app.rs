@@ -34,6 +34,7 @@ use crate::{
 };
 
 pub fn lock(hwnd: HWND) {
+    if LOCKED.load(Relaxed) { return; }
     LOCKED.store(true, Relaxed);
     unsafe {
         SetTimer(hwnd, TIMER_PANIC, 100, None);
@@ -43,6 +44,7 @@ pub fn lock(hwnd: HWND) {
 }
 
 pub fn unlock(hwnd: HWND) {
+    if !LOCKED.load(Relaxed) { return; }
     LOCKED.store(false, Relaxed);
     unsafe {
         KillTimer(hwnd, TIMER_PANIC);
@@ -184,12 +186,20 @@ pub unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPA
             if !ptr.is_null() {
                 (*ptr).destroy();
                 drop(Box::from_raw(ptr));
+                SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
             }
             PostQuitMessage(0);
             0
         }
 
-        _ => DefWindowProcW(hwnd, msg, wp, lp),
+        _ => {
+            let tc = crate::TASKBAR_CREATED.load(Relaxed);
+            if tc != 0 && msg == tc {
+                tray_from_hwnd(hwnd).re_add();
+                return 0;
+            }
+            DefWindowProcW(hwnd, msg, wp, lp)
+        }
     }
 }
 

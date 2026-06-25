@@ -21,8 +21,8 @@ pub static MOUSE_HOOK:  AtomicUsize = AtomicUsize::new(0); // HHOOK as usize
 pub static APP_HWND:    AtomicUsize = AtomicUsize::new(0); // HWND as usize
 pub static PANIC_START: AtomicU32   = AtomicU32::new(0);   // GetTickCount() snapshot
 
-pub fn install(_hwnd: HWND) -> Result<(), &'static str> {
-    // Install keyboard hook
+pub fn install(hwnd: HWND) -> Result<(), &'static str> {
+    APP_HWND.store(hwnd as usize, Relaxed);
     let kb = unsafe {
         SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), 0, 0)
     };
