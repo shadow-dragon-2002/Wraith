@@ -1,3 +1,8 @@
+// Wraith — lock/unlock logic, WndProc, auto-start
+// Step 5: lock() / unlock() + SetThreadExecutionState
+// Step 6: panic unlock via WM_TIMER + GetAsyncKeyState
+// Step 7: set_autostart() / is_autostart()
+
 use std::sync::atomic::Ordering::Relaxed;
 use windows_sys::Win32::{
     Foundation::{HWND, LPARAM, LRESULT, WPARAM},
@@ -10,23 +15,28 @@ use windows_sys::Win32::{
             RegCloseKey, RegDeleteValueW, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW,
             HKEY_CURRENT_USER, KEY_QUERY_VALUE, KEY_SET_VALUE, REG_SZ,
         },
+        WindowsProgramming::GetTickCount,
     },
-    UI::WindowsAndMessaging::{
-        DefWindowProcW, DestroyWindow, GetWindowLongPtrW, PostQuitMessage, SetWindowLongPtrW,
-        GWLP_USERDATA, WM_COMMAND, WM_DESTROY, WM_LBUTTONDBLCLK, WM_RBUTTONUP, WM_CONTEXTMENU,
+    UI::{
+        Input::KeyboardAndMouse::GetAsyncKeyState,
+        WindowsAndMessaging::{
+            DefWindowProcW, DestroyWindow, GetWindowLongPtrW, KillTimer, PostQuitMessage,
+            SetTimer, SetWindowLongPtrW, GWLP_USERDATA, WM_COMMAND, WM_CONTEXTMENU, WM_DESTROY,
+            WM_LBUTTONDBLCLK, WM_RBUTTONUP, WM_TIMER,
+        },
     },
 };
 
 use crate::{
     hooks::{self, LOCKED},
-    to_wide,
     tray::TrayIcon,
-    ID_AUTOSTART, ID_EXIT, ID_LOCK, ID_UNLOCK, WM_TRAY_MSG, WM_UPDATE_RESULT,
+    ID_AUTOSTART, ID_EXIT, ID_LOCK, ID_UNLOCK, TIMER_PANIC, WM_TRAY_MSG, WM_UPDATE_RESULT,
 };
 
 pub fn lock(hwnd: HWND) {
     LOCKED.store(true, Relaxed);
     unsafe {
+        SetTimer(hwnd, TIMER_PANIC, 100, None);
         SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
         tray_from_hwnd(hwnd).set_locked(true);
     }
@@ -34,6 +44,10 @@ pub fn lock(hwnd: HWND) {
 
 pub fn unlock(hwnd: HWND) {
     LOCKED.store(false, Relaxed);
+    unsafe {
+        KillTimer(hwnd, TIMER_PANIC);
+    }
+    hooks::PANIC_START.store(0, Relaxed);
     unsafe {
         SetThreadExecutionState(ES_CONTINUOUS);
         tray_from_hwnd(hwnd).set_locked(false);
@@ -135,6 +149,27 @@ pub unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPA
             0
         }
 
+        WM_TIMER => {
+            if wp == TIMER_PANIC {
+                let cfg = crate::config::Config::get();
+                // GetAsyncKeyState works even when the hook blocks the physical event.
+                // Bit 15 set = key currently held down.
+                let held = (GetAsyncKeyState(cfg.panic_vk as i32) as u16) & 0x8000 != 0;
+                if held {
+                    let now = GetTickCount();
+                    let start = hooks::PANIC_START.load(Relaxed);
+                    if start == 0 {
+                        hooks::PANIC_START.store(now, Relaxed);
+                    } else if now.wrapping_sub(start) >= 3000 {
+                        unlock(hwnd);
+                    }
+                } else {
+                    hooks::PANIC_START.store(0, Relaxed);
+                }
+            }
+            0
+        }
+
         WM_UPDATE_RESULT => {
             if lp != 0 {
                 let s = Box::from_raw(lp as *mut String);
@@ -160,4 +195,8 @@ pub unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPA
 
 unsafe fn tray_from_hwnd(hwnd: HWND) -> &'static mut TrayIcon {
     &mut *(GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut TrayIcon)
+}
+
+fn to_wide(s: &str) -> Vec<u16> {
+    s.encode_utf16().chain(std::iter::once(0)).collect()
 }
