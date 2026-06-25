@@ -1,38 +1,36 @@
 // Wraith Resource File
-// Add your custom icon files as wraith_unlocked.ico and wraith_locked.ico
-// then compile with: rc resource.rc
+// Compile: x86_64-w64-mingw32-windres src/resource.rc -o <OUT_DIR>/resource.o
+// (build.rs does this automatically when target_os = windows)
 
-#include <windows.h>
+// Icon IDs -- add wraith_unlocked.ico and wraith_locked.ico to repo root,
+// then uncomment these two lines and rebuild:
+// 1 ICON "../wraith_unlocked.ico"
+// 2 ICON "../wraith_locked.ico"
 
-// Icon IDs (referenced in wraith.cpp as MAKEINTRESOURCEW(1) and (2))
-// 1 IDI_ICON1  "wraith_unlocked.ico"
-// 2 IDI_ICON2  "wraith_locked.ico"
+// Application manifest -- embedded as RT_MANIFEST (ID 1)
+// windres runs with --include-dir=. (project root), so "../wraith.manifest"
+// resolves relative to this file's directory (src/).
+1 RT_MANIFEST "../wraith.manifest"
 
-// Uncomment lines above and add your .ico files to enable custom icons.
-// Until then, Wraith falls back to built-in Windows system icons.
-
-// Application manifest (auto-requests admin, sets DPI awareness)
-1 RT_MANIFEST "wraith.manifest"
-
-// Version information
+// Version information block (raw numeric values -- no #include <windows.h> needed)
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION     1,0,0,0
 PRODUCTVERSION  1,0,0,0
-FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+FILEFLAGSMASK   0x0000003FL
 FILEFLAGS       0
-FILEOS          VOS_NT_WINDOWS32
-FILETYPE        VFT_APP
-FILESUBTYPE     VFT2_UNKNOWN
+FILEOS          0x00040004L
+FILETYPE        0x00000001L
+FILESUBTYPE     0x00000000L
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
-        BLOCK "040904b0"
+        BLOCK "040904B0"
         BEGIN
-            VALUE "CompanyName",      "nightraven"
-            VALUE "FileDescription",  "Wraith — Physical Input Blocker"
+            VALUE "CompanyName",      "shadow-dragon-2002"
+            VALUE "FileDescription",  "Wraith - Physical Input Blocker"
             VALUE "FileVersion",      "1.0.0"
             VALUE "InternalName",     "wraith"
-            VALUE "LegalCopyright",   "MIT License"
+            VALUE "LegalCopyright",   "PolyForm Noncommercial 1.0.0"
             VALUE "OriginalFilename", "wraith.exe"
             VALUE "ProductName",      "Wraith"
             VALUE "ProductVersion",   "1.0.0"

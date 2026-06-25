@@ -1,12 +1,12 @@
 ; Wraith NSIS Installer
 ; Requires: NSIS 3.x  (https://nsis.sourceforge.io/)
-; Build: makensis wraith.nsi
-; Place wraith.exe in the same directory before building.
+; Build: makensis installer\wraith.nsi  (run from repo root)
+; Place wraith.exe and wraith.ini in repo root before building.
 
 !include "MUI2.nsh"
 !include "x64.nsh"
 
-; ── Metadata ──────────────────────────────────────────────────────────────────
+; -- Metadata ---------------------------------------------------------------
 Name              "Wraith"
 OutFile           "wraith-setup.exe"
 InstallDir        "$PROGRAMFILES64\Wraith"
@@ -15,10 +15,8 @@ RequestExecutionLevel admin
 SetCompressor     /SOLID lzma
 Unicode           True
 
-; ── MUI Pages ────────────────────────────────────────────────────────────────
+; -- MUI Pages ---------------------------------------------------------------
 !define MUI_ABORTWARNING
-!define MUI_ICON   "..\wraith_unlocked.ico"
-!define MUI_UNICON "..\wraith_unlocked.ico"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "..\LICENSE"
@@ -33,13 +31,14 @@ Unicode           True
 
 !insertmacro MUI_LANGUAGE "English"
 
-; ── Install section ───────────────────────────────────────────────────────────
+; -- Install section ---------------------------------------------------------
 Section "Wraith" SecMain
     SectionIn RO   ; required
 
     SetOutPath "$INSTDIR"
-    File "..\wraith.exe"
-    File /nonfatal "..\wraith.ini"   ; ship default config; /nonfatal if missing
+    ; File paths relative to CWD at makensis invocation (repo root)
+    File "wraith.exe"
+    File /nonfatal "wraith.ini"   ; ship default config; /nonfatal if missing
 
     ; Start Menu
     CreateDirectory "$SMPROGRAMS\Wraith"
@@ -55,11 +54,11 @@ Section "Wraith" SecMain
     WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Wraith" \
                        "DisplayVersion"  "1.0.0"
     WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Wraith" \
-                       "Publisher"       "nightraven"
+                       "Publisher"       "shadow-dragon-2002"
     WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Wraith" \
                        "UninstallString" '"$INSTDIR\Uninstall.exe"'
     WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Wraith" \
-                       "URLInfoAbout"    "https://github.com/nightraven/wraith"
+                       "URLInfoAbout"    "https://github.com/shadow-dragon-2002/Wraith"
     WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Wraith" \
                        "NoModify" 1
     WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Wraith" \
@@ -69,7 +68,7 @@ Section "Wraith" SecMain
     WriteRegStr HKCU "Software\Wraith" "InstallDir" "$INSTDIR"
 SectionEnd
 
-; ── Uninstall section ─────────────────────────────────────────────────────────
+; -- Uninstall section -------------------------------------------------------
 Section "Uninstall"
     ; Kill running instance first
     ExecWait 'taskkill /F /IM wraith.exe' $0
