@@ -24,18 +24,18 @@ pub static PANIC_START: AtomicU32   = AtomicU32::new(0);   // GetTickCount() sna
 pub fn install(hwnd: HWND) -> Result<(), &'static str> {
     APP_HWND.store(hwnd as usize, Relaxed);
     let kb = unsafe {
-        SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), 0, 0)
+        SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), std::ptr::null_mut(), 0)
     };
-    if kb == 0 {
+    if kb.is_null() {
         return Err("Failed to install keyboard hook");
     }
     KB_HOOK.store(kb as usize, Relaxed);
 
     // Install mouse hook (clean up kb hook on failure)
     let ms = unsafe {
-        SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_proc), 0, 0)
+        SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_proc), std::ptr::null_mut(), 0)
     };
-    if ms == 0 {
+    if ms.is_null() {
         unsafe { UnhookWindowsHookEx(kb); }
         KB_HOOK.store(0, Relaxed);
         return Err("Failed to install mouse hook");
@@ -48,12 +48,12 @@ pub fn install(hwnd: HWND) -> Result<(), &'static str> {
 pub fn uninstall() {
     let kb = KB_HOOK.swap(0, Relaxed);
     if kb != 0 {
-        unsafe { UnhookWindowsHookEx(kb as isize); }
+        unsafe { UnhookWindowsHookEx(kb as *mut core::ffi::c_void); }
     }
 
     let ms = MOUSE_HOOK.swap(0, Relaxed);
     if ms != 0 {
-        unsafe { UnhookWindowsHookEx(ms as isize); }
+        unsafe { UnhookWindowsHookEx(ms as *mut core::ffi::c_void); }
     }
 }
 
@@ -90,14 +90,14 @@ fn mods_held(mods: u32) -> bool {
 unsafe extern "system" fn keyboard_proc(n_code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     // MANDATORY: nCode < 0 must short-circuit first — MSDN requirement.
     if n_code < 0 {
-        return CallNextHookEx(0, n_code, w_param, l_param);
+        return CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param);
     }
 
     let kb = &*(l_param as *const KBDLLHOOKSTRUCT);
 
     // LLKHF_INJECTED (bit 4) — synthetic input; always pass through.
     if kb.flags & 0x10 != 0 {
-        return CallNextHookEx(0, n_code, w_param, l_param);
+        return CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param);
     }
 
     // Only check combos on key-down events.
@@ -123,20 +123,20 @@ unsafe extern "system" fn keyboard_proc(n_code: i32, w_param: WPARAM, l_param: L
         return 1; // block — do NOT call CallNextHookEx
     }
 
-    CallNextHookEx(0, n_code, w_param, l_param)
+    CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param)
 }
 
 unsafe extern "system" fn mouse_proc(n_code: i32, w_param: WPARAM, l_param: LPARAM) -> LRESULT {
     // MANDATORY: nCode < 0 must short-circuit first.
     if n_code < 0 {
-        return CallNextHookEx(0, n_code, w_param, l_param);
+        return CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param);
     }
 
     let ms = &*(l_param as *const MSLLHOOKSTRUCT);
 
     // LLMHF_INJECTED (bit 0) — synthetic input; always pass through.
     if ms.flags & 0x01 != 0 {
-        return CallNextHookEx(0, n_code, w_param, l_param);
+        return CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param);
     }
 
     // Block all physical mouse events when locked.
@@ -144,5 +144,5 @@ unsafe extern "system" fn mouse_proc(n_code: i32, w_param: WPARAM, l_param: LPAR
         return 1; // block — do NOT call CallNextHookEx
     }
 
-    CallNextHookEx(0, n_code, w_param, l_param)
+    CallNextHookEx(std::ptr::null_mut(), n_code, w_param, l_param)
 }

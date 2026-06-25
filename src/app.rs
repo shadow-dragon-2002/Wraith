@@ -13,9 +13,9 @@ use windows_sys::Win32::{
         },
         Registry::{
             RegCloseKey, RegDeleteValueW, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW,
-            HKEY_CURRENT_USER, KEY_QUERY_VALUE, KEY_SET_VALUE, REG_SZ,
+            HKEY, HKEY_CURRENT_USER, KEY_QUERY_VALUE, KEY_SET_VALUE, REG_SZ,
         },
-        WindowsProgramming::GetTickCount,
+        SystemInformation::GetTickCount,
     },
     UI::{
         Input::KeyboardAndMouse::GetAsyncKeyState,
@@ -68,13 +68,13 @@ pub fn set_autostart(enable: bool) {
     let run_key = to_wide("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
     let value_name = to_wide("Wraith");
     unsafe {
-        let mut hkey = 0isize;
+        let mut hkey: HKEY = std::ptr::null_mut();
         if RegOpenKeyExW(HKEY_CURRENT_USER, run_key.as_ptr(), 0, KEY_SET_VALUE, &mut hkey) != 0 {
             return;
         }
         if enable {
             let mut raw = [0u16; 510];
-            let len = GetModuleFileNameW(0, raw.as_mut_ptr(), raw.len() as u32) as usize;
+            let len = GetModuleFileNameW(std::ptr::null_mut(), raw.as_mut_ptr(), raw.len() as u32) as usize;
             // Wrap in double quotes so paths with spaces survive the Run key
             let mut quoted: Vec<u16> = Vec::with_capacity(len + 3);
             quoted.push(b'"' as u16);
@@ -100,7 +100,7 @@ pub fn is_autostart() -> bool {
     let run_key = to_wide("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
     let value_name = to_wide("Wraith");
     unsafe {
-        let mut hkey = 0isize;
+        let mut hkey: HKEY = std::ptr::null_mut();
         if RegOpenKeyExW(HKEY_CURRENT_USER, run_key.as_ptr(), 0, KEY_QUERY_VALUE, &mut hkey) != 0 {
             return false;
         }

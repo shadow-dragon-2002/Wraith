@@ -169,7 +169,7 @@ pub fn spawn(_hwnd: windows_sys::Win32::Foundation::HWND) {
             tag
         ));
         let raw = Box::into_raw(msg) as isize;
-        let hwnd = APP_HWND.load(Relaxed) as isize;
+        let hwnd = APP_HWND.load(Relaxed) as *mut core::ffi::c_void;
         unsafe {
             PostMessageW(hwnd, crate::WM_UPDATE_RESULT, 0, raw);
         }

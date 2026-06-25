@@ -41,9 +41,9 @@ fn main() {
         let mutex_name = to_wide("Global\\WraithSingleInstance");
         let _mutex = CreateMutexW(std::ptr::null(), 0, mutex_name.as_ptr());
         let mutex_err = GetLastError();
-        if _mutex == 0 {
+        if _mutex.is_null() {
             MessageBoxW(
-                0,
+                std::ptr::null_mut(),
                 to_wide("Failed to create mutex.").as_ptr(),
                 to_wide("Wraith").as_ptr(),
                 MB_OK | MB_ICONERROR,
@@ -52,7 +52,7 @@ fn main() {
         }
         if mutex_err == ERROR_ALREADY_EXISTS {
             MessageBoxW(
-                0,
+                std::ptr::null_mut(),
                 to_wide("Wraith is already running.").as_ptr(),
                 to_wide("Wraith").as_ptr(),
                 MB_OK | MB_ICONINFORMATION,
@@ -74,16 +74,16 @@ fn main() {
             cbClsExtra: 0,
             cbWndExtra: 0,
             hInstance: hinstance,
-            hIcon: 0,
-            hCursor: 0,
-            hbrBackground: 0,
+            hIcon: std::ptr::null_mut(),
+            hCursor: std::ptr::null_mut(),
+            hbrBackground: std::ptr::null_mut(),
             lpszMenuName: std::ptr::null(),
             lpszClassName: class_name.as_ptr(),
-            hIconSm: 0,
+            hIconSm: std::ptr::null_mut(),
         };
         if RegisterClassExW(&wc) == 0 {
             MessageBoxW(
-                0,
+                std::ptr::null_mut(),
                 to_wide("Failed to register window class.").as_ptr(),
                 to_wide("Wraith").as_ptr(),
                 MB_OK | MB_ICONERROR,
@@ -98,13 +98,13 @@ fn main() {
             0,
             0, 0, 0, 0,
             HWND_MESSAGE,
-            0,
+            std::ptr::null_mut(),
             hinstance,
             std::ptr::null(),
         );
-        if hwnd == 0 {
+        if hwnd.is_null() {
             MessageBoxW(
-                0,
+                std::ptr::null_mut(),
                 to_wide("Failed to create message window.").as_ptr(),
                 to_wide("Wraith").as_ptr(),
                 MB_OK | MB_ICONERROR,
@@ -125,7 +125,7 @@ fn main() {
         // 6. Install low-level hooks (also stores APP_HWND) -- exit on failure
         if let Err(e) = hooks::install(hwnd) {
             MessageBoxW(
-                hwnd,
+                std::ptr::null_mut(),
                 to_wide(e).as_ptr(),
                 to_wide("Wraith").as_ptr(),
                 MB_OK | MB_ICONERROR,
@@ -144,7 +144,7 @@ fn main() {
         // 9. Message pump -- drives WH_KEYBOARD_LL / WH_MOUSE_LL callbacks
         let mut msg: MSG = std::mem::zeroed();
         loop {
-            let r = GetMessageW(&mut msg, 0, 0, 0);
+            let r = GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0);
             if r <= 0 { break; } // 0 = WM_QUIT, negative = error
             TranslateMessage(&msg);
             DispatchMessageW(&msg);

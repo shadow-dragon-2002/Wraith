@@ -72,7 +72,7 @@ impl TrayIcon {
     pub fn show_menu(&self, hwnd: HWND, locked: bool) {
         unsafe {
             let menu = CreatePopupMenu();
-            if menu == 0 {
+            if menu.is_null() {
                 return;
             }
 
@@ -140,7 +140,7 @@ fn load_icons() -> (HICON, HICON) {
                 0, 0, // 0x0 = system default icon size
                 0u32, // LR_DEFAULTCOLOR
             );
-            if h != 0 { h } else { LoadIconW(0, IDI_APPLICATION) }
+            if !h.is_null() { h } else { LoadIconW(std::ptr::null_mut(), IDI_APPLICATION) }
         };
         (try_load(1), try_load(2))
     }

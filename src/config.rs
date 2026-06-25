@@ -51,7 +51,7 @@ impl Config {
 
 fn exe_relative(filename: &str) -> Vec<u16> {
     let mut buf = [0u16; 520];
-    let len = unsafe { GetModuleFileNameW(0, buf.as_mut_ptr(), buf.len() as u32) } as usize;
+    let len = unsafe { GetModuleFileNameW(std::ptr::null_mut(), buf.as_mut_ptr(), buf.len() as u32) } as usize;
     let dir_end = buf[..len]
         .iter()
         .rposition(|&c| c == b'\\' as u16 || c == b'/' as u16)
