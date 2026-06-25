@@ -4,3 +4,4 @@ target/
 *.obj
 *.res
 *.o
+.claude/
