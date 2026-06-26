@@ -5,3 +5,13 @@ target/
 *.res
 *.o
 .claude/
+
+# AI dev artifacts
+CLAUDE.md
+docs/agents/
+docs/research/
+docs/spec/
+docs/SKILLS.md
+docs/PRD.md
+docs/ISSUES.md
+docs/TESTS.md
