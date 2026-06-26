@@ -31,22 +31,25 @@ pub struct TrayIcon {
 impl TrayIcon {
     pub fn new(hwnd: HWND) -> Self {
         let (h_icon_unlocked, h_icon_locked) = load_icons();
-        let mut nid = blank_nid(hwnd);
+        let t = TrayIcon { hwnd, h_icon_unlocked, h_icon_locked, locked: false };
+        t.add_to_shell();
+        t
+    }
+
+    fn add_to_shell(&self) {
+        let mut nid = blank_nid(self.hwnd);
         nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
         nid.uCallbackMessage = WM_TRAY_MSG;
-        nid.hIcon = h_icon_unlocked;
-        copy_wide(&to_wide("Wraith - Unlocked"), &mut nid.szTip);
-
+        nid.hIcon = if self.locked { self.h_icon_locked } else { self.h_icon_unlocked };
+        let tip = if self.locked { "Wraith - Locked" } else { "Wraith - Unlocked" };
+        copy_wide(&to_wide(tip), &mut nid.szTip);
         unsafe {
             Shell_NotifyIconW(NIM_ADD, &nid);
-
             // NIM_SETVERSION must follow NIM_ADD; enables WM_CONTEXTMENU + NIN_* on Vista+
-            let mut ver_nid = blank_nid(hwnd);
+            let mut ver_nid = blank_nid(self.hwnd);
             ver_nid.Anonymous.uVersion = NOTIFYICON_VERSION_4;
             Shell_NotifyIconW(NIM_SETVERSION, &ver_nid);
         }
-
-        TrayIcon { hwnd, h_icon_unlocked, h_icon_locked, locked: false }
     }
 
     pub fn set_locked(&mut self, locked: bool) {
@@ -105,19 +108,7 @@ impl TrayIcon {
 
     // Re-add the tray icon after Explorer restarts (WM_TASKBARCREATED).
     pub fn re_add(&self) {
-        let icon = if self.locked { self.h_icon_locked } else { self.h_icon_unlocked };
-        let tip  = if self.locked { "Wraith - Locked" } else { "Wraith - Unlocked" };
-        let mut nid = blank_nid(self.hwnd);
-        nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
-        nid.uCallbackMessage = WM_TRAY_MSG;
-        nid.hIcon = icon;
-        copy_wide(&to_wide(tip), &mut nid.szTip);
-        unsafe {
-            Shell_NotifyIconW(NIM_ADD, &nid);
-            let mut ver_nid = blank_nid(self.hwnd);
-            ver_nid.Anonymous.uVersion = NOTIFYICON_VERSION_4;
-            Shell_NotifyIconW(NIM_SETVERSION, &ver_nid);
-        }
+        self.add_to_shell();
     }
 
 }

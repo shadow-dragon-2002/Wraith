@@ -1,5 +1,3 @@
-// Wraith — WH_KEYBOARD_LL / WH_MOUSE_LL hooks + global atomics
-// Step 4: install/uninstall, keyboard_proc, mouse_proc
 
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering::Relaxed};
 

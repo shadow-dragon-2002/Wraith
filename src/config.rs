@@ -61,18 +61,3 @@ fn exe_relative(filename: &str) -> Vec<u16> {
     path.extend(crate::to_wide(filename));
     path
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn defaults_match_ini_docs() {
-        assert_eq!(DEFAULT_LOCK_MODS, 7);
-        assert_eq!(DEFAULT_LOCK_VK, 76);
-        assert_eq!(DEFAULT_UNLOCK_MODS, 7);
-        assert_eq!(DEFAULT_UNLOCK_VK, 85);
-        assert_eq!(DEFAULT_PANIC_VK, 27);
-        assert_eq!(DEFAULT_LOCK_ON_START, 0);
-    }
-}

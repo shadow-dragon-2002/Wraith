@@ -18,10 +18,6 @@ const WINHTTP_FLAG_SECURE: u32 = 0x0080_0000;
 const WINHTTP_OPTION_CONNECT_TIMEOUT: u32 = 4;
 const WINHTTP_OPTION_RECEIVE_TIMEOUT: u32 = 6;
 
-fn wide(s: &str) -> Vec<u16> {
-    s.encode_utf16().chain(std::iter::once(0)).collect()
-}
-
 /// Parse the `tag_name` value from a GitHub releases JSON response.
 /// Returns the raw tag string (e.g. `"v1.2.3"`) including the leading `v`.
 fn parse_tag(body: &str) -> Option<&str> {
@@ -45,10 +41,10 @@ fn parse_ver(s: &str) -> Option<(u32, u32, u32)> {
 /// Fetch the latest GitHub release body via WinHTTP.
 /// Returns `None` on any network or API error.
 unsafe fn fetch_latest() -> Option<Vec<u8>> {
-    let agent = wide("Wraith-Updater/1.0");
-    let host = wide("api.github.com");
-    let path = wide("/repos/shadow-dragon-2002/Wraith/releases/latest");
-    let method = wide("GET");
+    let agent = crate::to_wide("Wraith-Updater/1.0");
+    let host = crate::to_wide("api.github.com");
+    let path = crate::to_wide("/repos/shadow-dragon-2002/Wraith/releases/latest");
+    let method = crate::to_wide("GET");
 
     let session = WinHttpOpen(
         agent.as_ptr(),
@@ -136,7 +132,7 @@ unsafe fn fetch_latest() -> Option<Vec<u8>> {
 /// Spawn a background thread that checks for a newer GitHub release.
 /// Returns immediately. Posts `WM_UPDATE_RESULT` with a heap `Box<String>` as LPARAM
 /// if a newer version is found; silent on error or when up to date.
-pub fn spawn(_hwnd: windows_sys::Win32::Foundation::HWND) {
+pub fn spawn() {
     std::thread::spawn(|| {
         let body = unsafe { fetch_latest() };
         let body = match body {
